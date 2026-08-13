@@ -30,11 +30,18 @@ Scene rendering support in the template:
 - `title`, `hook`, `outro`: typography-driven cards using `title`, `points`,
   and repo metadata.
 - `architecture`, `datamodel`, `flow`, `demo`: full-bleed `visuals` image with
-  optional caption bar.
+  optional caption bar; screenshots get a subtle Ken Burns pan/zoom.
 - `code`: monospace block from `visual.code` (or image from `visual.src`).
-- `insight`: large number/label card from `points`.
+- `insight`: large number/label card from `points`, with a count-up animation
+  when the headline value is a plain integer (e.g. `"12,300"`).
+- Every non-title/outro scene with narration shows it as a word-by-word
+  burn-in caption (`src/scenes.tsx` → `NarrationCaption`).
 - Per-scene audio mounted at cumulative offsets; fade-in transitions between
   scenes.
+
+Export a subtitle file (`.srt`) from the manifest with
+`python <skill>/scripts/export_srt.py --manifest manifest.json` — one cue per
+narration sentence, timed against each scene's `duration_s`.
 
 Notes: requires Node 18+; first `npm install` takes 1-2 minutes and the first
 render downloads a headless Chrome. Fonts (Inter, JetBrains Mono) are loaded via

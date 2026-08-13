@@ -52,6 +52,9 @@ an architecture diagram, and an edge-tts voiceover:
 - **Editorial diagrams.** Integrates the
   [diagram-design](https://github.com/cathrynlavery/diagram-design) skill
   (27 self-contained HTML+SVG diagram types), with Mermaid/Graphviz fallbacks.
+- **Cinematic output.** Ken Burns motion on screenshots, count-up numbers,
+  word-by-word burn-in captions, EBU R128 loudness normalization, and `.srt`
+  subtitle export.
 - **Quality gates.** The final video must be 60–180 s, include a voiceover, use
   at least one screenshot and one diagram, and pass an `ffprobe` check before
   delivery.

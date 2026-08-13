@@ -161,7 +161,11 @@ python <skill>/scripts/tts.py --manifest manifest.json --engine edge    # fast f
 
 Output: `audio/scene-<NN>.mp3` (one per scene) and `audio/voiceover.mp3`
 (concatenated). The script also reports per-scene durations so scene timing can
-be adjusted if narration overruns the planned duration.
+be adjusted if narration overruns the planned duration. The edge engine adds
+inter-sentence pauses, and `voiceover.mp3` is loudness-normalized (EBU R128).
+
+For subtitle delivery, export a `.srt` with
+`python <skill>/scripts/export_srt.py --manifest manifest.json`.
 
 Engine details, speakers, language support, and local Qwen3-TTS setup: see
 [references/tts.md](references/tts.md).

@@ -81,6 +81,8 @@ RepoStudio/
   时也可切换（`npx hyperframes check && render`）。
 - **TTS 分级**：有 GPU 用 Qwen3-TTS-12Hz-1.7B-CustomVoice（9 种预设音色 +
   情绪指令），没有则用 edge-tts 秒级兜底。
+- **成片质感**：截图 Ken Burns 运镜、insight 数字滚动、逐词字幕烧录、EBU R128
+  响度归一化，并可导出 `.srt` 字幕。
 - **质量门禁**：成片必须 60~180 秒、有配音、至少 1 张截图 + 1 张图表、所有
   素材存在，ffprobe 复核后才会交付。
 

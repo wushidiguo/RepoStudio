@@ -53,6 +53,11 @@ Outputs `audio/scene-<NN>.mp3` per scene plus concatenated
 `audio/voiceover.mp3` (ffmpeg required for concatenation). The script prints
 actual per-scene durations.
 
+The edge engine splits long narrations into sentences and inserts a short
+silence between them for more natural pacing (tune with `--pause-ms`, default
+220). The concatenated `voiceover.mp3` is then loudness-normalized to EBU R128
+(`-16 LUFS`) so volume stays consistent across scenes and engines.
+
 ## Timing check
 
 If a scene's TTS duration exceeds its planned `duration_s` by more than 20%,
