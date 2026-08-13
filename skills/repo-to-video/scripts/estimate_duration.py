@@ -15,39 +15,53 @@ import re
 import sys
 from pathlib import Path
 
-
 WORDS_PER_SEC = {
-    "en": 2.583,   # ~155 wpm
-    "de": 2.333,   # ~140 wpm
+    "en": 2.583,  # ~155 wpm
+    "de": 2.333,  # ~140 wpm
     "es": 2.333,
     "fr": 2.333,
     "pt": 2.333,
 }
 
-CHARS_PER_SEC_DEFAULT = 3.0  # Japanese / Chinese fallback
+# Spoken characters per second for CJK scripts (Japanese / Chinese / Korean).
+CHARS_PER_SEC_DEFAULT = 3.0
+
+# CJK ideographs/syllabaries are counted separately from Latin-script words.
+_CJK_RE = re.compile(r"[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]")
+
+# A "word" is a run of Unicode letters or digits, optionally with internal
+# apostrophes/hyphens, so accented Latin ("déjà"), contractions ("don't") and
+# hyphenated compounds ("state-of-the-art") each count once. CJK is stripped
+# before counting so it is not double-counted here.
+_WORD_RE = re.compile(r"[^\W_]+(?:['’-][^\W_]+)*")
 
 
 def count_words(text: str) -> int:
-    return len(re.findall(r"[A-Za-z0-9]+(?:['-][A-Za-z0-9]+)*", text))
+    return len(_WORD_RE.findall(_CJK_RE.sub(" ", text)))
 
 
 def count_cjk_chars(text: str) -> int:
-    return len(re.findall(r"[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]", text))
+    return len(_CJK_RE.findall(text))
 
 
 def estimate_scene_duration(narration: str, language: str) -> float:
-    """Seconds of speech for a narration string in the given language."""
+    """Seconds of speech for a narration string in the given language.
+
+    CJK characters and Latin-script words are disjoint, so a mixed narration
+    (e.g. Chinese with English identifiers) is the sum of both parts rather
+    than dropping either.
+    """
     if not narration:
         return 0.0
     lang = (language or "en").lower()
-    cjk = count_cjk_chars(narration)
-    if cjk and lang not in ("ja", "zh", "ko"):
-        # Mixed-language text: weight CJK chars at the CJK rate.
-        rate = CHARS_PER_SEC_DEFAULT
-        return max(cjk / rate, count_words(narration) / WORDS_PER_SEC.get("en", 2.583))
+    cjk_seconds = count_cjk_chars(narration) / CHARS_PER_SEC_DEFAULT
     if lang in ("ja", "zh", "ko"):
-        return cjk / CHARS_PER_SEC_DEFAULT
-    return count_words(narration) / WORDS_PER_SEC.get(lang, WORDS_PER_SEC["en"])
+        # English words/numbers mixed into a CJK narration are still spoken
+        # as English words.
+        word_seconds = count_words(narration) / WORDS_PER_SEC["en"]
+    else:
+        word_seconds = count_words(narration) / WORDS_PER_SEC.get(lang, WORDS_PER_SEC["en"])
+    return cjk_seconds + word_seconds
 
 
 def load_manifest(path: Path) -> dict:
@@ -99,7 +113,7 @@ def main() -> int:
     warnings = []
     if total_estimated < 0.45 * total_planned:
         warnings.append(
-            f"narration only covers {coverage*100:.0f}% of the timeline "
+            f"narration only covers {coverage * 100:.0f}% of the timeline "
             "(<45%); consider adding narration or shortening quiet scenes"
         )
     if total_estimated > 1.1 * total_planned:
@@ -131,19 +145,12 @@ def main() -> int:
         print(f"{'scene':<12}{'words':>6}{'planned':>10}{'estimated':>10}  status")
         for row in rows:
             print(
-                f"{row['id']:<12}{row['words']:>6}{row['planned']:>10.1f}"
-                f"{row['estimated']:>10.1f}"
+                f"{row['id']:<12}{row['words']:>6}{row['planned']:>10.1f}{row['estimated']:>10.1f}"
             )
         print("-" * 44)
-        print(
-            f"total planned   {total_planned:8.1f} s "
-            f"({total_planned/60:.2f} min)"
-        )
-        print(
-            f"total estimated {total_estimated:8.1f} s "
-            f"({total_estimated/60:.2f} min)"
-        )
-        print(f"speech coverage {coverage*100:7.1f}% of timeline")
+        print(f"total planned   {total_planned:8.1f} s ({total_planned / 60:.2f} min)")
+        print(f"total estimated {total_estimated:8.1f} s ({total_estimated / 60:.2f} min)")
+        print(f"speech coverage {coverage * 100:7.1f}% of timeline")
         print(f"target range    {args.target_min:.0f}-{args.target_max:.0f} s")
         for w in warnings:
             print(f"[WARN] {w}")
