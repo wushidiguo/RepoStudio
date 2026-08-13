@@ -1,0 +1,42 @@
+[project]
+name = "repo-to-video"
+version = "0.2.0"
+description = "Turn any GitHub repository into a 1-3 minute narrated explainer video."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Wu Kai" }]
+dependencies = [
+    "edge-tts>=7.0.0",
+    "playwright>=1.40.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/wushidiguo/RepoStudio"
+Repository = "https://github.com/wushidiguo/RepoStudio"
+Issues = "https://github.com/wushidiguo/RepoStudio/issues"
+
+# The scripts are plain tools, not an importable package: tell uv to install
+# only the dependencies into the environment, not the project itself.
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["estimate_duration", "capture_screens", "tts"]
