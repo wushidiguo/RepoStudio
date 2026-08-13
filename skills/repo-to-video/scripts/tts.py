@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -58,6 +59,18 @@ def load_manifest(path: Path) -> dict:
 def set_voiceover_meta(manifest: dict, engine: str, file: str) -> None:
     """Record the generated voiceover in the manifest's top-level schema."""
     manifest["voiceover"] = {"engine": engine, "file": file}
+
+
+# CJK sentence punctuation is not followed by whitespace, while Latin ".!?"
+# only ends a sentence when followed by whitespace (so "3.12" and "e.g." do
+# not split into bogus sentences).
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[。！？])|(?<=[.!?])\s+")
+
+
+def split_sentences(text: str) -> list[str]:
+    """Split narration into sentences for more natural TTS pacing."""
+    parts = _SENTENCE_SPLIT_RE.split(text.strip())
+    return [part.strip() for part in parts if part.strip()]
 
 
 def mp3_duration(path: Path) -> float | None:
@@ -124,7 +137,7 @@ def concat_mp3s(paths: list[Path], output: Path) -> bool:
         list_file.unlink(missing_ok=True)
 
 
-def edge_synthesize(text: str, voice: str, output: Path, retries: int = 3) -> None:
+def _edge_save(text: str, voice: str, output: Path, retries: int) -> None:
     import edge_tts
 
     for attempt in range(1, retries + 1):
@@ -140,6 +153,117 @@ def edge_synthesize(text: str, voice: str, output: Path, retries: int = 3) -> No
                 file=sys.stderr,
             )
             time.sleep(delay)
+
+
+def concat_with_gaps(parts: list[Path], output: Path, gap_ms: int) -> None:
+    """Concatenate audio parts with a short silence gap between each."""
+    ffmpeg = find_ffmpeg()
+    if not ffmpeg or not parts:
+        return
+    silence = output.with_name("._silence.mp3")
+    subprocess.run(
+        [
+            ffmpeg,
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "anullsrc=r=24000:cl=mono",
+            "-t",
+            f"{gap_ms / 1000:.3f}",
+            "-c:a",
+            "libmp3lame",
+            "-b:a",
+            "128k",
+            str(silence),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    list_file = output.with_suffix(".txt")
+    lines = []
+    for i, part in enumerate(parts):
+        lines.append(f"file '{part.resolve().as_posix()}'")
+        if i < len(parts) - 1:
+            lines.append(f"file '{silence.resolve().as_posix()}'")
+    list_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    try:
+        subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(list_file),
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "128k",
+                str(output),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    finally:
+        list_file.unlink(missing_ok=True)
+        silence.unlink(missing_ok=True)
+
+
+def normalize_loudness(path: Path, target: float = -16.0) -> bool:
+    """Normalize an MP3 to a target loudness (EBU R128) in place."""
+    ffmpeg = find_ffmpeg()
+    if not ffmpeg or not path.exists():
+        return False
+    tmp = path.with_suffix(".loud.mp3")
+    try:
+        subprocess.run(
+            [
+                ffmpeg,
+                "-y",
+                "-i",
+                str(path),
+                "-af",
+                f"loudnorm=I={target}:TP=-1.5:LRA=11",
+                "-c:a",
+                "libmp3lame",
+                "-b:a",
+                "128k",
+                str(tmp),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        tmp.replace(path)
+        return True
+    except subprocess.CalledProcessError as exc:
+        print(f"[WARN] loudness normalization failed: {exc.stderr[-400:]}", file=sys.stderr)
+        tmp.unlink(missing_ok=True)
+        return False
+
+
+def edge_synthesize(
+    text: str, voice: str, output: Path, retries: int = 3, pause_ms: int = 220
+) -> None:
+    sentences = split_sentences(text)
+    if len(sentences) <= 1 or find_ffmpeg() is None:
+        _edge_save(text, voice, output, retries)
+        return
+    parts: list[Path] = []
+    try:
+        for i, sentence in enumerate(sentences):
+            part = output.with_name(f".{output.stem}.part{i}.mp3")
+            _edge_save(sentence, voice, part, retries)
+            parts.append(part)
+        concat_with_gaps(parts, output, pause_ms)
+    finally:
+        for part in parts:
+            part.unlink(missing_ok=True)
 
 
 def qwen3_synthesize(
@@ -191,6 +315,12 @@ def main() -> int:
     parser.add_argument("--speaker", default=None, help="Qwen3 preset speaker")
     parser.add_argument("--device", default=None, help="Qwen3 device (cuda/cpu); defaults to CPU")
     parser.add_argument("--output-dir", default="audio", help="Output directory")
+    parser.add_argument(
+        "--pause-ms",
+        type=int,
+        default=220,
+        help="Silence between sentences (edge engine only)",
+    )
     args = parser.parse_args()
 
     if not args.manifest.exists():
@@ -255,7 +385,7 @@ def main() -> int:
         if engine == "edge":
             voice = args.voice or DEFAULT_VOICES.get(lang) or DEFAULT_VOICES["en"]
             print(f"[edge] {scene_id}: {text[:60]}... -> {output}")
-            edge_synthesize(text, voice, output)
+            edge_synthesize(text, voice, output, pause_ms=args.pause_ms)
             final_output = output
         else:
             speaker = args.speaker or scene.get("speaker") or DEFAULT_SPEAKERS.get(lang, "Ryan")
@@ -276,6 +406,8 @@ def main() -> int:
     if scene_paths:
         voiceover = out_dir / "voiceover.mp3"
         if concat_mp3s(scene_paths, voiceover):
+            if normalize_loudness(voiceover):
+                print("[OK] normalized voiceover loudness (EBU R128)")
             dur = mp3_duration(voiceover)
             print(f"[OK] voiceover: {voiceover} ({dur if dur is not None else 'unknown'} s)")
             set_voiceover_meta(
