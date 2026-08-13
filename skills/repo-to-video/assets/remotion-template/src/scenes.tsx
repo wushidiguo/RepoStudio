@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {
   AbsoluteFill,
   Img,
@@ -70,13 +70,13 @@ const Chip: React.FC<{children: React.ReactNode}> = ({children}) => (
   </span>
 );
 
-const Caption: React.FC<{text: string}> = ({text}) => (
+const Caption: React.FC<{text: string; bottom?: number}> = ({text, bottom = 0}) => (
   <div
     style={{
       position: 'absolute',
       left: 0,
       right: 0,
-      bottom: 0,
+      bottom,
       padding: '24px 60px',
       background: 'rgba(2,6,23,0.78)',
       color: C.ink,
@@ -88,7 +88,40 @@ const Caption: React.FC<{text: string}> = ({text}) => (
   </div>
 );
 
-const VisualItem: React.FC<{visual: Visual; big?: boolean}> = ({visual, big}) => {
+const KenBurnsImage: React.FC<{src: string; durationInFrames: number}> = ({
+  src,
+  durationInFrames,
+}) => {
+  const frame = useCurrentFrame();
+  const progress = durationInFrames > 1 ? frame / (durationInFrames - 1) : 0;
+  const scale = interpolate(progress, [0, 1], [1, 1.08], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const translateX = interpolate(progress, [0, 1], [0, -24], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  return (
+    <div style={{flex: 1, overflow: 'hidden', minWidth: 0, minHeight: 0, position: 'relative'}}>
+      <Img
+        src={staticFile(src)}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'contain',
+          transform: `scale(${scale}) translateX(${translateX}px)`,
+        }}
+      />
+    </div>
+  );
+};
+
+const VisualItem: React.FC<{
+  visual: Visual;
+  big?: boolean;
+  durationInFrames: number;
+}> = ({visual, big, durationInFrames}) => {
   if (visual.code) {
     return (
       <pre
@@ -113,34 +146,26 @@ const VisualItem: React.FC<{visual: Visual; big?: boolean}> = ({visual, big}) =>
     );
   }
   if (visual.src) {
-    return (
-      <Img
-        src={staticFile(visual.src)}
-        style={{
-          flex: 1,
-          objectFit: 'contain',
-          width: '100%',
-          height: '100%',
-          minWidth: 0,
-          minHeight: 0,
-        }}
-      />
-    );
+    return <KenBurnsImage src={visual.src} durationInFrames={durationInFrames} />;
   }
   return null;
 };
 
-const VisualBlock: React.FC<{scene: Scene}> = ({scene}) => {
+const VisualBlock: React.FC<{scene: Scene; durationInFrames: number}> = ({
+  scene,
+  durationInFrames,
+}) => {
   const visuals = scene.visuals ?? [];
   if (visuals.length === 0) {
     return null;
   }
+  const captionBottom = scene.narration?.trim() ? 104 : 0;
   if (visuals.length === 1) {
     const v = visuals[0];
     return (
       <>
-        <VisualItem visual={v} big />
-        {v.caption ? <Caption text={v.caption} /> : null}
+        <VisualItem visual={v} big durationInFrames={durationInFrames} />
+        {v.caption ? <Caption text={v.caption} bottom={captionBottom} /> : null}
       </>
     );
   }
@@ -161,7 +186,7 @@ const VisualBlock: React.FC<{scene: Scene}> = ({scene}) => {
           key={i}
           style={{position: 'relative', display: 'flex', minWidth: 0, minHeight: 0}}
         >
-          <VisualItem visual={v} />
+          <VisualItem visual={v} durationInFrames={durationInFrames} />
         </div>
       ))}
     </div>
@@ -197,9 +222,86 @@ const PointsCard: React.FC<{points: string[]; big?: boolean}> = ({points, big}) 
   </div>
 );
 
-export const SceneCard: React.FC<{scene: Scene; repo?: Manifest['repo']}> = ({scene, repo}) => {
+const CountUp: React.FC<{value: string; durationInFrames: number}> = ({
+  value,
+  durationInFrames,
+}) => {
+  const frame = useCurrentFrame();
+  if (!/^[\d,]+$/.test(value)) {
+    return <>{value}</>;
+  }
+  const target = parseInt(value.replace(/,/g, ''), 10);
+  const progress = interpolate(
+    frame,
+    [0, Math.max(1, Math.round(durationInFrames * 0.6))],
+    [0, 1],
+    {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}
+  );
+  return <>{Math.round(target * progress).toLocaleString('en-US')}</>;
+};
+
+const splitCaptionTokens = (text: string): string[] => {
+  const matches = text.match(
+    /[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]|[^\s\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+/g
+  );
+  return matches ?? [];
+};
+
+const NarrationCaption: React.FC<{text: string; durationInFrames: number}> = ({
+  text,
+  durationInFrames,
+}) => {
+  const frame = useCurrentFrame();
+  const tokens = useMemo(() => splitCaptionTokens(text), [text]);
+  if (tokens.length === 0) {
+    return null;
+  }
+  const revealEnd = Math.max(1, Math.round(durationInFrames * 0.85));
+  const progress = interpolate(frame, [0, revealEnd], [0, 1], {
+    extrapolateLeft: 'clamp',
+    extrapolateRight: 'clamp',
+  });
+  const revealed = Math.floor(progress * tokens.length);
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 4,
+        padding: '22px 60px 30px',
+        background: 'rgba(2,6,23,0.85)',
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '0 10px',
+      }}
+    >
+      {tokens.map((token, i) => (
+        <span
+          key={i}
+          style={{
+            fontSize: 30,
+            lineHeight: 1.5,
+            fontFamily: 'Inter, system-ui, sans-serif',
+            color: i < revealed ? C.ink : 'rgba(148,163,184,0.28)',
+          }}
+        >
+          {token}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+export const SceneCard: React.FC<{
+  scene: Scene;
+  repo?: Manifest['repo'];
+  durationInFrames: number;
+}> = ({scene, repo, durationInFrames}) => {
   const {type, title, points, narration} = scene;
   const label = LABELS[type] ?? type;
+  const showCaption = type !== 'title' && type !== 'outro' && Boolean(narration?.trim());
 
   return (
     <AbsoluteFill style={{background: C.bg}}>
@@ -247,7 +349,7 @@ export const SceneCard: React.FC<{scene: Scene; repo?: Manifest['repo']}> = ({sc
               </div>
             ) : null}
             <div style={{color: C.accent, fontSize: 150, lineHeight: 1, fontFamily: 'Inter, system-ui, sans-serif', fontWeight: 800}}>
-              {points?.[0] ?? ''}
+              <CountUp value={points?.[0] ?? ''} durationInFrames={durationInFrames} />
             </div>
             <div style={{color: C.ink, fontSize: 52, fontFamily: 'Inter, system-ui, sans-serif'}}>
               {points?.[1] ?? narration}
@@ -263,7 +365,7 @@ export const SceneCard: React.FC<{scene: Scene; repo?: Manifest['repo']}> = ({sc
               </div>
             ) : null}
             <div style={{flex: 1, display: 'flex', padding: title ? '110px 40px 40px 40px' : 40}}>
-              <VisualBlock scene={scene} />
+              <VisualBlock scene={scene} durationInFrames={durationInFrames} />
             </div>
           </div>
         ) : null}
@@ -283,6 +385,7 @@ export const SceneCard: React.FC<{scene: Scene; repo?: Manifest['repo']}> = ({sc
           </div>
         ) : null}
       </FadeIn>
+      {showCaption ? <NarrationCaption text={narration ?? ''} durationInFrames={durationInFrames} /> : null}
     </AbsoluteFill>
   );
 };

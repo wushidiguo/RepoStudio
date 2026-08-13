@@ -21,7 +21,7 @@ export const Explainer: React.FC<{manifest: Manifest}> = ({manifest}) => {
             durationInFrames={durationFrames}
             name={scene.id}
           >
-            <SceneCard scene={scene} repo={manifest.repo} />
+            <SceneCard scene={scene} repo={manifest.repo} durationInFrames={durationFrames} />
             {audioSrc ? <Audio src={audioSrc} /> : null}
           </Sequence>
         );
