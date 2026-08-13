@@ -39,4 +39,4 @@ target-version = "py39"
 select = ["E", "F", "W", "I"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["estimate_duration", "capture_screens", "tts"]
+known-first-party = ["estimate_duration", "capture_screens", "export_srt", "tts"]
