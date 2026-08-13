@@ -37,8 +37,10 @@ Scene rendering support in the template:
   scenes.
 
 Notes: requires Node 18+; first `npm install` takes 1-2 minutes and the first
-render downloads a headless Chrome. To add new layouts, edit `src/scenes.tsx`
-(React); keep everything manifest-driven.
+render downloads a headless Chrome. Fonts (Inter, JetBrains Mono) are loaded via
+`@remotion/google-fonts` (`src/fonts.ts`), so rendering is deterministic
+regardless of the fonts installed on the machine. To add new layouts, edit
+`src/scenes.tsx` (React); keep everything manifest-driven.
 
 ## HyperFrames (alternative engine)
 

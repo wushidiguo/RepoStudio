@@ -1,0 +1,18 @@
+# Normalize line endings for text files; keep binaries untouched.
+* text=auto eol=lf
+
+# Scripts must stay executable-friendly on Unix.
+*.sh text eol=lf
+*.ps1 text eol=crlf
+
+# Binaries
+*.mp4 binary
+*.png binary
+*.woff2 binary
+
+# Lockfiles are generated, not edited by hand.
+uv.lock linguist-generated=true
+package-lock.json linguist-generated=true
+
+# Keep the committed sample video out of GitHub's rendered diff view.
+sample-output.mp4 linguist-vendored=true

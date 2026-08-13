@@ -1,5 +1,8 @@
 # RepoStudio
 
+[![CI](https://github.com/wushidiguo/RepoStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/wushidiguo/RepoStudio/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Turn any GitHub repository into a **1–3 minute narrated explainer video**.
 
 RepoStudio ships as a [Codex](https://openai.com/codex/) skill that autonomously
@@ -104,6 +107,13 @@ RepoStudio/
 ├── install.ps1 / install.sh   # one-click installer
 ├── README.md                  # this file
 ├── README.zh-CN.md            # 中文说明
+├── CONTRIBUTING.md            # contributing guide
+├── CODE_OF_CONDUCT.md         # community standards
+├── SECURITY.md                # vulnerability reporting
+├── CHANGELOG.md               # release notes
+├── pyproject.toml / uv.lock   # Python tooling + locked dependencies (uv)
+├── tests/                     # pytest unit tests
+├── .github/                   # CI workflow + issue/PR templates
 ├── LICENSE
 └── skills/repo-to-video/
     ├── SKILL.md               # entry point: 7-phase workflow + quality gates
@@ -133,11 +143,30 @@ RepoStudio/
 7. **Render** — renders the final MP4 with the bundled Remotion template (or
    HyperFrames), then verifies duration, size, and audio track with `ffprobe`.
 
+## Development
+
+The repo uses [uv](https://docs.astral.sh/uv/) for a reproducible Python
+environment:
+
+```bash
+uv sync --extra dev   # installs edge-tts, playwright, pytest, ruff
+uv run pytest         # run the tests
+uv run ruff check .   # lint
+```
+
+GitHub Actions runs the same checks plus a Remotion TypeScript typecheck on
+every push and pull request.
+
 ## Contributing
 
-Issues and pull requests are welcome. The skill is designed to be
-forward-testable — a great first contribution is producing an explainer video
-for a repository you know well and reporting friction points.
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for setup and conventions, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for
+community expectations. Report security issues privately per
+[SECURITY.md](SECURITY.md).
+
+The skill is designed to be forward-testable — a great first contribution is
+producing an explainer video for a repository you know well and reporting
+friction points.
 
 ## License
 

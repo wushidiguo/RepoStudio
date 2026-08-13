@@ -1,5 +1,8 @@
 # RepoStudio
 
+[![CI](https://github.com/wushidiguo/RepoStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/wushidiguo/RepoStudio/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 把一个任意 GitHub 仓库变成 1~3 分钟「代码库讲解视频」的 Codex skill 项目。
 
 `repo-to-video` skill 会自主完成：clone 仓库 → 深度分析代码库 → 截取关键画面 →
@@ -48,6 +51,13 @@ RepoStudio/
 ├── install.ps1 / install.sh   # 一键安装脚本（把 skill 装到 $CODEX_HOME/skills）
 ├── README.md                  # 英文说明（默认）
 ├── README.zh-CN.md            # 中文说明
+├── CONTRIBUTING.md            # 贡献指南
+├── CODE_OF_CONDUCT.md         # 社区行为准则
+├── SECURITY.md                # 安全漏洞上报
+├── CHANGELOG.md               # 更新日志
+├── pyproject.toml / uv.lock   # Python 工具链 + 锁定依赖（uv）
+├── tests/                     # pytest 单元测试
+├── .github/                   # CI 工作流 + Issue/PR 模板
 ├── LICENSE
 └── skills/repo-to-video/
     ├── SKILL.md               # skill 入口：七阶段工作流 + 质量门禁
@@ -93,6 +103,19 @@ RepoStudio/
 - **网页应用跑不起来？** skill 会退回截图 README/docs 或代码卡片，不影响成片。
 - **想换 HyperFrames？** 在 manifest 里设 `"engine": "hyperframes"`，按
   `references/rendering.md` 走 hyperframes CLI 渲染。
+
+## 开发与贡献
+
+欢迎提 Issue 和 PR。环境搭建与规范见 [CONTRIBUTING.md](CONTRIBUTING.md)，
+社区行为准则见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)，安全漏洞请按
+[SECURITY.md](SECURITY.md) 私下上报。项目用 [uv](https://docs.astral.sh/uv/)
+管理可复现的 Python 环境：
+
+```bash
+uv sync --extra dev   # 安装 edge-tts / playwright / pytest / ruff
+uv run pytest         # 跑测试
+uv run ruff check .   # lint
+```
 
 ## License
 
