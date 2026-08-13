@@ -49,7 +49,24 @@ fi
 
 echo "==> Installing skill '$SKILL_NAME' into $TARGET"
 mkdir -p "$TARGET"
-rm -rf "$DST_DIR"
+
+# Resolve the target to a canonical path so a symlinked or malformed --target
+# cannot make the remove step touch files outside the intended directory.
+canonical_target="$(cd "$TARGET" 2>/dev/null && pwd -P || printf '%s' "$TARGET")"
+
+if [[ -e "$DST_DIR" || -L "$DST_DIR" ]]; then
+  canonical_dst="$(cd "$DST_DIR" 2>/dev/null && pwd -P || true)"
+  case "$canonical_dst/" in
+    "$canonical_target"/*)
+      rm -rf "$DST_DIR"
+      ;;
+    *)
+      echo "[ERROR] Refusing to remove path outside target: $DST_DIR" >&2
+      exit 1
+      ;;
+  esac
+fi
+
 cp -R "$SRC_DIR" "$DST_DIR"
 echo "    Copied -> $DST_DIR"
 
