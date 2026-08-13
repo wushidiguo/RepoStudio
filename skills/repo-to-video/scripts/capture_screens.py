@@ -24,8 +24,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
+
+
+def slugify(name: str) -> str:
+    """Turn an arbitrary route name into a safe, readable filename stem."""
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", name or "")
+    stem = re.sub(r"-{2,}", "-", stem).strip("-")
+    return stem or "shot"
 
 
 def main() -> int:
@@ -48,7 +56,8 @@ def main() -> int:
         from playwright.sync_api import sync_playwright
     except ImportError:
         print(
-            "[ERROR] playwright not installed. Run: python -m pip install playwright && playwright install chromium",
+            "[ERROR] playwright not installed. Run: python -m pip install playwright && "
+            "playwright install chromium",
             file=sys.stderr,
         )
         return 1
@@ -81,7 +90,7 @@ def main() -> int:
                 url = f"{base_url}{path}"
             else:
                 url = f"{base_url}/{path}"
-            out = output_dir / f"capture-{name}.png"
+            out = output_dir / f"capture-{slugify(name)}.png"
             print(f"[capture] {name}: {url}")
             try:
                 page.goto(url, wait_until="load", timeout=30000)

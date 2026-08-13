@@ -6,8 +6,10 @@ Engines:
   qwen3 - Qwen3-TTS-12Hz-1.7B-CustomVoice (best quality, needs GPU + model download)
 
 Usage:
-    python tts.py --manifest manifest.json --engine edge [--language en] [--voice en-US-ChristopherNeural]
-    python tts.py --manifest manifest.json --engine qwen3 [--language en] [--speaker Ryan] [--device cuda]
+    python tts.py --manifest manifest.json --engine edge [--language en]
+                  [--voice en-US-ChristopherNeural]
+    python tts.py --manifest manifest.json --engine qwen3 [--language en]
+                  [--speaker Ryan] [--device cuda]
 
 Outputs:
     audio/scene-<id>.mp3  (one per scene with narration)
@@ -22,8 +24,8 @@ import json
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
-
 
 DEFAULT_VOICES = {
     "en": "en-US-ChristopherNeural",
@@ -51,6 +53,11 @@ def find_ffprobe() -> str | None:
 def load_manifest(path: Path) -> dict:
     with path.open("r", encoding="utf-8-sig") as fh:
         return json.load(fh)
+
+
+def set_voiceover_meta(manifest: dict, engine: str, file: str) -> None:
+    """Record the generated voiceover in the manifest's top-level schema."""
+    manifest["voiceover"] = {"engine": engine, "file": file}
 
 
 def mp3_duration(path: Path) -> float | None:
@@ -117,16 +124,28 @@ def concat_mp3s(paths: list[Path], output: Path) -> bool:
         list_file.unlink(missing_ok=True)
 
 
-def edge_synthesize(text: str, voice: str, output: Path) -> None:
+def edge_synthesize(text: str, voice: str, output: Path, retries: int = 3) -> None:
     import edge_tts
 
-    asyncio.run(edge_tts.Communicate(text, voice).save(str(output)))
+    for attempt in range(1, retries + 1):
+        try:
+            asyncio.run(edge_tts.Communicate(text, voice).save(str(output)))
+            return
+        except Exception as exc:  # noqa: BLE001 - edge-tts raises several network error types
+            if attempt == retries:
+                raise
+            delay = 2 ** (attempt - 1)
+            print(
+                f"[edge] attempt {attempt}/{retries} failed ({exc}); retrying in {delay}s",
+                file=sys.stderr,
+            )
+            time.sleep(delay)
 
 
-def qwen3_synthesize(text: str, language: str, speaker: str, instruct: str | None,
-                     device: str, output: Path, model) -> Path:
+def qwen3_synthesize(
+    text: str, language: str, speaker: str, instruct: str | None, device: str, output: Path, model
+) -> Path:
     import soundfile as sf
-    import torch
 
     if model is None:
         raise RuntimeError("qwen3 model not loaded")
@@ -197,7 +216,8 @@ def main() -> int:
             from qwen_tts import Qwen3TTSModel  # noqa: F401
         except ImportError:
             print(
-                "[ERROR] qwen-tts is not installed. Run: python -m pip install qwen-tts torch torchaudio soundfile",
+                "[ERROR] qwen-tts is not installed. Run: python -m pip install "
+                "qwen-tts torch torchaudio soundfile",
                 file=sys.stderr,
             )
             return 1
@@ -233,11 +253,7 @@ def main() -> int:
         output = out_dir / f"scene-{scene_id}.mp3"
 
         if engine == "edge":
-            voice = (
-                args.voice
-                or DEFAULT_VOICES.get(lang)
-                or DEFAULT_VOICES["en"]
-            )
+            voice = args.voice or DEFAULT_VOICES.get(lang) or DEFAULT_VOICES["en"]
             print(f"[edge] {scene_id}: {text[:60]}... -> {output}")
             edge_synthesize(text, voice, output)
             final_output = output
@@ -262,6 +278,11 @@ def main() -> int:
         if concat_mp3s(scene_paths, voiceover):
             dur = mp3_duration(voiceover)
             print(f"[OK] voiceover: {voiceover} ({dur if dur is not None else 'unknown'} s)")
+            set_voiceover_meta(
+                manifest,
+                engine,
+                voiceover.relative_to(out_dir.parent).as_posix(),
+            )
         manifest_path = Path(args.manifest)
         manifest_path.write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
