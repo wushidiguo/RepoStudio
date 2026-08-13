@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node / Remotion
+node_modules/
+video/
+.vite/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Env & secrets
+.env
+.env.*
+
+# Local render output (sample-output.mp4 is committed intentionally)
+out.mp4
+renders/

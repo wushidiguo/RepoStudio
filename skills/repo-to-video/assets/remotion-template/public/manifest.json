@@ -1,0 +1,39 @@
+{
+  "repo": {
+    "name": "example-project",
+    "url": "https://github.com/example/example-project",
+    "stars": 12300,
+    "license": "MIT",
+    "language": "Python"
+  },
+  "meta": {
+    "language": "en",
+    "engine": "remotion",
+    "fps": 30,
+    "width": 1920,
+    "height": 1080
+  },
+  "scenes": [
+    {
+      "id": "01-title",
+      "type": "title",
+      "title": "Example Project: scale without the ops",
+      "narration": "Example Project turns a thousand servers into a single Python object.",
+      "duration_s": 6
+    },
+    {
+      "id": "02-hook",
+      "type": "hook",
+      "title": "One API. Zero servers.",
+      "points": ["42,000 lines of Python", "150 commits in the last month", "A single entry point"],
+      "duration_s": 8
+    },
+    {
+      "id": "03-insight",
+      "type": "insight",
+      "title": "Why it matters",
+      "points": ["12,300", "GitHub stars and counting"],
+      "duration_s": 6
+    }
+  ]
+}
