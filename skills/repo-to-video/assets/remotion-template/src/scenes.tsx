@@ -6,7 +6,7 @@ import {
   staticFile,
   useCurrentFrame,
 } from 'remotion';
-import type {Manifest, Scene} from './Video';
+import type {Manifest, Scene, Visual} from './types';
 
 const C = {
   bg: '#0f172a',
@@ -88,6 +88,48 @@ const Caption: React.FC<{text: string}> = ({text}) => (
   </div>
 );
 
+const VisualItem: React.FC<{visual: Visual; big?: boolean}> = ({visual, big}) => {
+  if (visual.code) {
+    return (
+      <pre
+        style={{
+          flex: 1,
+          margin: 0,
+          padding: big ? '48px 64px' : '36px',
+          background: C.panel,
+          color: C.ink,
+          fontSize: big ? 34 : 26,
+          lineHeight: big ? 1.55 : 1.5,
+          fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+          whiteSpace: 'pre-wrap',
+          borderLeft: big ? `8px solid ${C.accent}` : undefined,
+          minWidth: 0,
+          minHeight: 0,
+          overflow: 'hidden',
+        }}
+      >
+        {visual.code}
+      </pre>
+    );
+  }
+  if (visual.src) {
+    return (
+      <Img
+        src={staticFile(visual.src)}
+        style={{
+          flex: 1,
+          objectFit: 'contain',
+          width: '100%',
+          height: '100%',
+          minWidth: 0,
+          minHeight: 0,
+        }}
+      />
+    );
+  }
+  return null;
+};
+
 const VisualBlock: React.FC<{scene: Scene}> = ({scene}) => {
   const visuals = scene.visuals ?? [];
   if (visuals.length === 0) {
@@ -97,59 +139,29 @@ const VisualBlock: React.FC<{scene: Scene}> = ({scene}) => {
     const v = visuals[0];
     return (
       <>
-        {v.code ? (
-          <pre
-            style={{
-              flex: 1,
-              margin: 0,
-              padding: '48px 64px',
-              background: C.panel,
-              color: C.ink,
-              fontSize: 34,
-              lineHeight: 1.55,
-              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-              whiteSpace: 'pre-wrap',
-              borderLeft: `8px solid ${C.accent}`,
-            }}
-          >
-            {v.code}
-          </pre>
-        ) : v.src ? (
-          <Img
-            src={staticFile(v.src)}
-            style={{flex: 1, objectFit: 'contain', width: '100%', height: '100%'}}
-          />
-        ) : null}
+        <VisualItem visual={v} big />
         {v.caption ? <Caption text={v.caption} /> : null}
       </>
     );
   }
   return (
-    <div style={{flex: 1, display: 'flex', gap: 24, padding: 40}}>
-      {visuals.slice(0, 2).map((v, i) => (
-        <div key={i} style={{flex: 1, display: 'flex', position: 'relative'}}>
-          {v.code ? (
-            <pre
-              style={{
-                flex: 1,
-                margin: 0,
-                padding: 36,
-                background: C.panel,
-                color: C.ink,
-                fontSize: 26,
-                lineHeight: 1.5,
-                fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {v.code}
-            </pre>
-          ) : v.src ? (
-            <Img
-              src={staticFile(v.src ?? '')}
-              style={{flex: 1, objectFit: 'contain', width: '100%', height: '100%'}}
-            />
-          ) : null}
+    <div
+      style={{
+        flex: 1,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: 24,
+        padding: 40,
+        minWidth: 0,
+        minHeight: 0,
+      }}
+    >
+      {visuals.map((v, i) => (
+        <div
+          key={i}
+          style={{position: 'relative', display: 'flex', minWidth: 0, minHeight: 0}}
+        >
+          <VisualItem visual={v} />
         </div>
       ))}
     </div>
