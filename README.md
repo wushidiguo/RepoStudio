@@ -12,6 +12,8 @@ MP4 — no manual editing required.
 
 > 🌏 中文版说明见 [README.zh-CN.md](README.zh-CN.md)
 
+> 🎬 [PRcast](https://github.com/wushidiguo/PRcast) — turn a single pull request into a narrated explainer video, built on RepoStudio.
+
 ## What it does
 
 ```mermaid
